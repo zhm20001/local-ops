@@ -111,11 +111,11 @@ class FrontendAccessibilityContractTests(unittest.TestCase):
 
         self.assertEqual(
             [table["label"] for table in parser.tables],
-            ["我的服务", "应用后台", "已隐藏服务", "关注的进程"],
+            ["我的服务", "总控台自身", "应用后台", "已隐藏服务", "关注的进程"],
         )
         self.assertEqual(
             [table["headers"] for table in parser.tables],
-            [9, 9, 9, 5],
+            [9, 9, 9, 9, 5],
         )
         self.assertTrue(all(table["rows"] >= 1 for table in parser.tables))
 
@@ -238,6 +238,7 @@ class FrontendAccessibilityContractTests(unittest.TestCase):
         self.assertIn("export function observePortDiscovery", services)
         self.assertIn("svc.instanceKey", services)
         self.assertIn("svc.group === 'mine'", services)
+        self.assertIn("!svc.isSelf", services)
         self.assertIn("!svc.hidden", services)
         self.assertIn("!knownPorts.has(port)", services)
         self.assertIn("if (!app || !app.running) continue", services)

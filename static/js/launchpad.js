@@ -680,13 +680,31 @@ const appDiagClose = $('#appDiagClose');
 let appDiagApp = null;
 let appDiagRequestSeq = 0;
 
+function showAppDiagSkeleton() {
+  appDiagList.replaceChildren();
+  const sk = el('div', 'busy-skeleton busy-skeleton-diag');
+  sk.setAttribute('aria-hidden', 'true');
+  for (let i = 0; i < 3; i++) {
+    const card = el('div', 'busy-diag-card');
+    const t = el('div', 'busy-bar');
+    t.style.width = '42%';
+    const a = el('div', 'busy-bar');
+    a.style.width = '88%';
+    const b = el('div', 'busy-bar');
+    b.style.width = '70%';
+    card.append(t, a, b);
+    sk.appendChild(card);
+  }
+  appDiagList.appendChild(sk);
+}
+
 async function openAppDiagnosis(app) {
   const requestSeq = ++appDiagRequestSeq;
   appDiagApp = app;
   const isTask = (app.kind || 'service') === 'task';
   setText(appDiagTitle, (isTask ? '配置与运行诊断 · ' : '配置与启动诊断 · ') +
     (app.name || '应用'));
-  appDiagList.replaceChildren();
+  showAppDiagSkeleton();
   appDiagList.setAttribute('aria-busy', 'true');
   setText(appDiagSummary, '正在分析日志与配置…');
   openLayer(appDiagMask, appDiagClose);
@@ -701,6 +719,7 @@ async function openAppDiagnosis(app) {
   if (requestSeq !== appDiagRequestSeq || !appDiagApp || appDiagApp.id !== app.id) return;
   appDiagList.setAttribute('aria-busy', 'false');
   if (!r || r.ok === false) {
+    appDiagList.replaceChildren();
     setText(appDiagSummary, (r && r.error) || '诊断失败，请打开日志人工排查');
     return;
   }
@@ -866,7 +885,7 @@ function moveDrag(e) {
     'translate(' + (e.clientX - d.dx) + 'px,' + (e.clientY - d.dy) + 'px)';
   const hit = document.elementFromPoint(e.clientX, e.clientY);
   const over = hit && hit.closest('.app-card');
-  if (over && d.grid.contains(over) && !over.classList.contains('add-card')) {
+  if (over && d.grid.contains(over)) {
     /* 用布局坐标（offsetLeft，不含 FLIP transform）判定插入侧，
        避免让位动画中的视觉位置抖动导致占位框来回振荡 */
     const baseX = over.offsetParent.getBoundingClientRect().left;
@@ -875,12 +894,6 @@ function moveDrag(e) {
     const ref = before ? over : over.nextSibling;
     if (d.ph.nextSibling !== ref) {   // 位置没变则跳过，避免 FLIP 动画被重启
       flip(d.grid, () => d.grid.insertBefore(d.ph, ref));
-    }
-  } else if (over && d.grid.contains(over)) {
-    /* 添加卡上 → 网格末尾。添加卡被 prepend 到网格首位，
-       insertBefore(d.ph, over) 会把卡片插到首位，与“末尾”意图相反。 */
-    if (d.ph !== d.grid.lastChild) {
-      flip(d.grid, () => d.grid.appendChild(d.ph));
     }
   }
 }
@@ -1017,14 +1030,8 @@ export function renderLaunchpad(apps, firstRender) {
   if (drag || keyboardSort) return;  // 排序中轮询不打乱 DOM
   const svcs = apps.filter(a => (a.kind || 'service') !== 'task');
   const tasks = apps.filter(a => a.kind === 'task');
-  const addSvc = $('#addSvcCard');
-  const addTask = $('#addTaskCard');
-  addSvc.remove();
-  addTask.remove();
   reconcile(svcGrid, svcs, a => a.id, createAppCard, updateAppCard, firstRender);
-  svcGrid.prepend(addSvc);                  // 新增入口始终优先可见
   reconcile(taskGrid, tasks, a => a.id, createAppCard, updateAppCard, firstRender);
-  taskGrid.prepend(addTask);                // 批处理新增入口始终优先可见
   renderLpKpi(apps, svcs, tasks);
   latestSvcs = svcs;
   latestTasks = tasks;
@@ -1032,17 +1039,20 @@ export function renderLaunchpad(apps, firstRender) {
   syncTaskFilterUI();
   setText($('#svcSecCount'), svcs.length ? String(svcs.length) : '');
   setText($('#taskSecCount'), tasks.length ? String(tasks.length) : '');
+  syncSectionGuides();
 }
 
 function syncSvcFilterUI() {
   renderFilterChips($('#svcFilter'), SVC_FILTERS, latestSvcs, svcFilter, matchSvcFilter,
     f => { svcFilter = f; syncSvcFilterUI(); });
   applyGridFilter(svcGrid, latestSvcs, matchSvcFilter, svcFilter);
+  syncSectionGuides();
 }
 function syncTaskFilterUI() {
   renderFilterChips($('#taskFilter'), TASK_FILTERS, latestTasks, taskFilter, matchTaskFilter,
     f => { taskFilter = f; syncTaskFilterUI(); });
   applyGridFilter(taskGrid, latestTasks, matchTaskFilter, taskFilter);
+  syncSectionGuides();
 }
 
 /* ---------------- 启动台 KPI ---------------- */
@@ -1142,4 +1152,21 @@ function applyGridFilter(grid, apps, match, filter) {
     const app = byId.get(card.dataset.key);
     card.hidden = app ? !match(app, filter) : false;
   }
+}
+
+function setGuideHidden(node, hidden) {
+  if (!node) return;
+  node.hidden = hidden;
+}
+
+/* 分区空态：真正无卡片 vs 筛选无命中（Operate：有文案 + 指向已有添加入口） */
+function syncSectionGuides() {
+  const svcVisible = latestSvcs.filter(a => matchSvcFilter(a, svcFilter)).length;
+  const taskVisible = latestTasks.filter(a => matchTaskFilter(a, taskFilter)).length;
+  const svcEmpty = latestSvcs.length === 0;
+  const taskEmpty = latestTasks.length === 0;
+  setGuideHidden($('#svcEmptyGuide'), !svcEmpty);
+  setGuideHidden($('#taskEmptyGuide'), !taskEmpty);
+  setGuideHidden($('#svcFilterEmpty'), svcEmpty || svcVisible > 0);
+  setGuideHidden($('#taskFilterEmpty'), taskEmpty || taskVisible > 0);
 }

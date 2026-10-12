@@ -79,6 +79,10 @@ confirmMask.addEventListener('mousedown', e => { if (e.target === confirmMask) c
 
 /* ---------------- 结束进程确认 ---------------- */
 export function confirmKill(svc) {
+  if (svc && svc.isSelf) {
+    toast('不能结束总控台自身，请用顶栏停止 / 重启');
+    return;
+  }
   openConfirm({
     title: '结束进程',
     bodyHtml: '确定要结束进程 <b>' + escapeHtml(svc.name || '') + '</b> 吗？' +
@@ -671,13 +675,38 @@ export function openLogs(app) {
 export function openConsoleLog() {
   openLogDrawer('console', '总控台 · 日志');
 }
+function showLogBusySkeleton() {
+  logPre.hidden = true;
+  let sk = logBody.querySelector('.busy-skeleton');
+  if (!sk) {
+    sk = document.createElement('div');
+    sk.className = 'busy-skeleton busy-skeleton-log';
+    sk.setAttribute('aria-hidden', 'true');
+    for (let i = 0; i < 5; i++) {
+      const bar = document.createElement('div');
+      bar.className = 'busy-bar';
+      bar.style.width = (72 - i * 8) + '%';
+      sk.appendChild(bar);
+    }
+    logBody.prepend(sk);
+  }
+  sk.hidden = false;
+}
+
+function clearLogBusySkeleton() {
+  const sk = logBody.querySelector('.busy-skeleton');
+  if (sk) sk.hidden = true;
+  logPre.hidden = false;
+}
+
 function openLogDrawer(appId, title) {
   closeLogs();
   logAppId = appId;
   logIsConsole = appId === 'console';
   const requestSeq = ++logRequestSeq;
   drawerTitle.textContent = title;
-  logPre.textContent = '加载中…';
+  logPre.textContent = '';
+  showLogBusySkeleton();
   logBody.setAttribute('aria-busy', 'true');
   openLayer(logDrawer, drawerClose);
   drawerMask.classList.add('open');
@@ -696,7 +725,7 @@ async function fetchLogs(appId, requestSeq) {
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const j = await r.json();
     if (logAppId !== appId || requestSeq !== logRequestSeq) return;
-    const firstLoad = logPre.textContent === '加载中…';
+    const firstLoad = logBody.getAttribute('aria-busy') === 'true' || !logPre.textContent;
     const nearBottom = firstLoad ||
       logBody.scrollHeight - logBody.scrollTop - logBody.clientHeight < 48;
     const text = j.text || '';
@@ -707,6 +736,7 @@ async function fetchLogs(appId, requestSeq) {
     } else {
       logPre.textContent = text;
     }
+    clearLogBusySkeleton();
     logBody.setAttribute('aria-busy', 'false');
     if (nearBottom) requestAnimationFrame(() => {
       if (logAppId === appId && requestSeq === logRequestSeq) {
@@ -715,7 +745,8 @@ async function fetchLogs(appId, requestSeq) {
     });
   } catch (e) {
     if (e.name !== 'AbortError' && logAppId === appId && requestSeq === logRequestSeq) {
-      if (logPre.textContent === '加载中…') logPre.textContent = '日志加载失败，正在重试…';
+      clearLogBusySkeleton();
+      if (!logPre.textContent) logPre.textContent = '日志加载失败，正在重试…';
       logBody.setAttribute('aria-busy', 'false');
     }
   } finally {
@@ -730,6 +761,7 @@ export function closeLogs() {
   if (logTimer) { clearTimeout(logTimer); logTimer = null; }
   if (logController) { logController.abort(); logController = null; }
   logAppId = null;
+  clearLogBusySkeleton();
   logBody.setAttribute('aria-busy', 'false');
   closeLayer(logDrawer);
   drawerMask.classList.remove('open');

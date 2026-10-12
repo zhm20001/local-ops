@@ -933,12 +933,11 @@ def attribute_origin(pid, table):
 
 
 def build_services(cfg, groups=None):
-    """返回 (services, listeners)。只含当前用户进程，排除控制台自身。"""
+    """返回 (services, listeners)。只含当前用户进程；总控台自身带 isSelf=true。"""
     listeners = scan_listeners()
     snap = ps_snapshot({pid for pid, _ in listeners}, with_uid=True)
     mine_pids = [pid for pid, _ in listeners
-                 if pid != SELF_PID and pid in snap
-                 and snap[pid].get("uid") == SELF_UID]
+                 if pid in snap and snap[pid].get("uid") == SELF_UID]
     cwds = lsof_cwds(mine_pids)
     origin_table = origin_snapshot()
 
@@ -952,17 +951,19 @@ def build_services(cfg, groups=None):
 
     services = []
     for pid, port in sorted(listeners, key=lambda x: (x[1], x[0])):
-        if pid == SELF_PID:
-            continue
         info = snap.get(pid)
         if not info or info.get("uid") != SELF_UID:
             continue
+        is_self = pid == SELF_PID
         comm = info.get("comm") or ""
         args = info.get("args") or comm
         name = os.path.basename(comm) if comm else "?"
         key = "%s:%d" % (name, port)
         cwd = cwds.get(pid)
-        app = app_by_pid.get(pid)
+        # 自身不关联启动台卡片、不参与 hidden/pinned/promoted 名单语义
+        app = None if is_self else app_by_pid.get(pid)
+        group = "mine" if is_self else classify_group(
+            key, name, comm, args, cwd, promoted)
         services.append({
             "key": key,
             # key 保持 name:port 以兼容既有隐藏/置顶配置；instanceKey 用于
@@ -972,13 +973,16 @@ def build_services(cfg, groups=None):
             "openHost": listener_open_host(listeners, port, {pid}),
             "cwd": cwd, "project": project_name(cwd), "cmd": args,
             "cpu": info["cpu"], "mem": info["mem"], "uptimeSec": info["etime"],
-            "group": classify_group(key, name, comm, args, cwd, promoted),
-            "pinned": key in pinned, "hidden": key in hidden,
-            "promoted": key in promoted,
+            "group": group,
+            "pinned": False if is_self else key in pinned,
+            "hidden": False if is_self else key in hidden,
+            "promoted": False if is_self else key in promoted,
             "appId": app["id"] if app else None,
             "appName": app["name"] if app else None,
             # 来源溯源（尽力判断）：哪个应用/AI 助手启动了这个进程
-            "origin": attribute_origin(pid, origin_table),
+            "origin": ({"label": "总控台", "icon": "gauge"} if is_self
+                       else attribute_origin(pid, origin_table)),
+            "isSelf": is_self,
         })
     return services, listeners
 

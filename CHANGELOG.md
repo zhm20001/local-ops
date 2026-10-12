@@ -8,6 +8,17 @@
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-10-12
+
+### Changed
+- GitHub 顶栏链接指向 fork `zhm20001/local-ops`。
+- 启动台空态引导、分区标题「+」添加入口、日志/诊断 busy 骨架与 reduced-motion。
+- 服务监控展示总控台自身（`isSelf`），默认折叠且禁止结束自身。
+
+### Fixed
+- （已含于本分支的 launcher）Finder 启动时更稳健地发现 Python ≥3.12（含 mise）。
+
+
 ### Added
 
 - 项目启动识别增加 Poetry 支持；检测到 `poetry.lock` 时，Python Web 项目候选命令使用 `poetry run`。

@@ -11,6 +11,8 @@ import { configuredPort, actualPorts } from './ports.js';
 const mineList = $('#mineList'), mineEmpty = $('#mineEmpty');
 const bgHeader = $('#bgHeader'), bgBody = $('#bgBody'), bgList = $('#bgList');
 const bgEmpty = $('#bgEmpty'), bgCount = $('#bgCount');
+const selfPanel = $('#selfPanel'), selfHeader = $('#selfHeader'), selfBody = $('#selfBody');
+const selfList = $('#selfList'), selfCount = $('#selfCount');
 const hiddenPanel = $('#hiddenPanel'), hiddenHeader = $('#hiddenHeader');
 const hiddenBody = $('#hiddenBody'), hiddenList = $('#hiddenList'), hiddenCount = $('#hiddenCount');
 const watchChips = $('#watchChips'), watchInput = $('#watchInput');
@@ -64,6 +66,7 @@ function appKnownPorts(apps) {
 function discoveryEligible(svc, knownPorts) {
   const port = Number(svc && svc.port);
   return !!svc
+    && !svc.isSelf
     && svc.group === 'mine'
     && !svc.hidden
     && !svc.pinned
@@ -188,7 +191,8 @@ function createServiceRow(kind) {
 
   const cDot = el('span', 'c-dot');
   cDot.setAttribute('role', 'cell');
-  cDot.setAttribute('aria-label', kind === 'background' ? '状态：后台应用' : '状态：运行中');
+  cDot.setAttribute('aria-label', kind === 'self' ? '状态：总控台自身'
+    : kind === 'background' ? '状态：后台应用' : '状态：运行中');
   /* 运行绿，后台灰 */
   const dot = el('span', 'status-dot' + (kind === 'background' ? '' : ' running'));
   dot.setAttribute('aria-hidden', 'true');
@@ -226,8 +230,9 @@ function createServiceRow(kind) {
   cUp.setAttribute('role', 'cell');
   const cStatus = el('span', 'c-status');
   cStatus.setAttribute('role', 'cell');
-  const statusPill = el('span', 'status-pill' + (kind === 'mine' ? ' on' : ''));
-  statusPill.textContent = kind === 'mine' ? '运行中'
+  const statusPill = el('span', 'status-pill' + (kind === 'mine' || kind === 'self' ? ' on' : ''));
+  statusPill.textContent = kind === 'self' ? '总控台'
+    : kind === 'mine' ? '运行中'
     : kind === 'background' ? '后台' : '已隐藏';
   cStatus.append(statusPill);
   const cAct = el('span', 'c-act');
@@ -257,7 +262,23 @@ function createServiceRow(kind) {
     return svc ? setServiceFlag(svc.key, f, value) : null;
   };
 
-  if (kind === 'mine') {
+  if (kind === 'self') {
+    row.classList.add('is-self');
+    const bCmd = iconBtn('terminal', '展开完整命令');
+    bCmd.setAttribute('aria-expanded', 'false');
+    bCmd.setAttribute('aria-controls', cmdRow.id);
+    bCmd.addEventListener('click', () => {
+      row.classList.toggle('expanded');
+      bCmd.classList.toggle('active', row.classList.contains('expanded'));
+      bCmd.setAttribute('aria-expanded', String(row.classList.contains('expanded')));
+    });
+    const bKill = iconBtn('power', '不可结束总控台自身', 'danger');
+    bKill.disabled = true;
+    bKill.title = '请用顶栏停止 / 重启总控台';
+    bKill.setAttribute('aria-label', '不可结束总控台自身');
+    cAct.append(bCmd, bKill);
+    Object.assign(row._r, { command: bCmd, kill: bKill });
+  } else if (kind === 'mine') {
     const bAdd = iconBtn('plus', '添加到启动台');
     bAdd.addEventListener('click', () => {
       const s = findSvc(key());
@@ -313,9 +334,12 @@ function createServiceRow(kind) {
 function updateServiceRow(row, svc) {
   const r = row._r;
   /* 主标题：关联启动台应用 > 项目名 > 进程名；副标题：进程名 · PID */
-  const title = svc.appName || svc.project || svc.name || '';
+  const title = svc.isSelf
+    ? ('总控台' + (svc.port ? ' :' + svc.port : ''))
+    : (svc.appName || svc.project || svc.name || '');
   setText(r.name, title);
   r.name.title = title;
+  row.classList.toggle('is-self', !!svc.isSelf);
   r.mark.hidden = !svc.appId;
   setText(r.subText, svc.name || '');
   /* 来源徽标：哪个应用/AI 助手启动了这个进程（尽力判断） */
@@ -593,9 +617,10 @@ function syncMineFilterUI() {
 
 export function renderServices(d, firstRender) {
   const svcs = d.services || [];
-  const mine = svcs.filter(s => s.group === 'mine' && !s.hidden).sort(svcSort);
-  const bg = svcs.filter(s => s.group === 'background' && !s.hidden).sort(svcSort);
-  const hid = svcs.filter(s => s.hidden).sort(svcSort);
+  const selfRows = svcs.filter(s => s.isSelf).sort(svcSort);
+  const mine = svcs.filter(s => s.group === 'mine' && !s.hidden && !s.isSelf).sort(svcSort);
+  const bg = svcs.filter(s => s.group === 'background' && !s.hidden && !s.isSelf).sort(svcSort);
+  const hid = svcs.filter(s => s.hidden && !s.isSelf).sort(svcSort);
   const watched = d.watched || [];
   const keywords = d.watchedKeywords || [];
 
@@ -627,6 +652,7 @@ export function renderServices(d, firstRender) {
   renderPortDiscovery();
 
   reconcile(mineList, mine, serviceKey, () => createServiceRow('mine'), updateServiceRow, firstRender);
+  reconcile(selfList, selfRows, serviceKey, () => createServiceRow('self'), updateServiceRow, firstRender);
   reconcile(bgList, bg, serviceKey, () => createServiceRow('background'), updateServiceRow, firstRender);
   reconcile(hiddenList, hid, serviceKey, () => createServiceRow('hidden'), updateServiceRow, firstRender);
   reconcile(watchList, watched, w => w.pid, createWatchRow, updateWatchRow, firstRender);
@@ -636,6 +662,10 @@ export function renderServices(d, firstRender) {
 
   setText($('#mineSecCount'), mine.length ? String(mine.length) : '');
   setText(bgCount, String(bg.length));
+  if (selfPanel) {
+    selfPanel.hidden = selfRows.length === 0;
+    setText(selfCount, String(selfRows.length));
+  }
   hiddenPanel.hidden = hid.length === 0;
   setText(hiddenCount, '已隐藏 ' + hid.length + ' 个');
 
@@ -655,6 +685,13 @@ bgHeader.addEventListener('click', () => {
   bgHeader.classList.toggle('open', !bgBody.hidden);
   bgHeader.setAttribute('aria-expanded', String(!bgBody.hidden));
 });
+if (selfHeader) {
+  selfHeader.addEventListener('click', () => {
+    selfBody.hidden = !selfBody.hidden;
+    selfHeader.classList.toggle('open', !selfBody.hidden);
+    selfHeader.setAttribute('aria-expanded', String(!selfBody.hidden));
+  });
+}
 hiddenHeader.addEventListener('click', () => {
   hiddenBody.hidden = !hiddenBody.hidden;
   hiddenHeader.classList.toggle('open', !hiddenBody.hidden);

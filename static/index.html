@@ -93,7 +93,7 @@
               <span class="console-action-label" id="stopConsoleLabel">停止</span>
             </button>
             <button class="icon-btn" id="themeBtn" type="button" title="切换主题" aria-label="切换主题"></button>
-            <a class="icon-btn" id="githubLink" href="https://github.com/laogou717/local-ops" target="_blank" rel="noopener noreferrer" title="查看源码 · GitHub" aria-label="查看源码（GitHub 仓库）"></a>
+            <a class="icon-btn" id="githubLink" href="https://github.com/zhm20001/local-ops" target="_blank" rel="noopener noreferrer" title="查看源码 · GitHub" aria-label="查看源码（GitHub 仓库）"></a>
           </div>
         </div>
       </div>
@@ -182,23 +182,43 @@
 
             <!-- 长期服务 -->
             <section class="panel">
-              <div class="sec-label"><span>Services · 服务</span><span class="sec-count" id="svcSecCount"></span><i></i><div class="filter-row" id="svcFilter" role="group" aria-label="筛选服务"></div></div>
-              <div class="app-grid" id="svcGrid">
-                <button class="app-card add-card" id="addSvcCard" type="button">
-                  <span class="add-plus" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14" /><path d="M12 5v14" /></svg></span>
-                  <span class="add-text">添加服务</span>
-                </button>
+              <div class="sec-label">
+                <span>Services · 服务</span>
+                <button class="sec-add" id="addSvcCard" type="button" aria-label="添加服务" title="添加服务"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14" /><path d="M12 5v14" /></svg></button>
+                <span class="sec-count" id="svcSecCount"></span>
+                <i></i>
+                <div class="filter-row" id="svcFilter" role="group" aria-label="筛选服务"></div>
+              </div>
+              <div class="app-grid" id="svcGrid"></div>
+              <div class="sec-guide" id="svcEmptyGuide" hidden>
+                <p class="sec-guide-title">还没有服务</p>
+                <p class="sec-guide-body">把常用长期进程保存到启动台：选择工作区后可识别候选命令，也可手动填写。运行中的端口可从「服务监控」认领。</p>
+                <p class="sec-guide-hint">点击分区标题旁的 <strong>+</strong>，或按 <kbd>⌘</kbd><kbd>K</kbd> 打开命令面板。</p>
+              </div>
+              <div class="sec-guide sec-guide-filter" id="svcFilterEmpty" hidden>
+                <p class="sec-guide-title">没有符合筛选的服务</p>
+                <p class="sec-guide-body">当前筛选下没有卡片。切换上方芯片，或选「全部」查看所有服务。</p>
               </div>
             </section>
 
             <!-- 批处理任务 -->
             <section class="panel">
-              <div class="sec-label"><span>Tasks · 批处理任务</span><span class="sec-count" id="taskSecCount"></span><i></i><div class="filter-row" id="taskFilter" role="group" aria-label="筛选批处理任务"></div></div>
-              <div class="app-grid" id="taskGrid">
-                <button class="app-card add-card" id="addTaskCard" type="button">
-                  <span class="add-plus" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14" /><path d="M12 5v14" /></svg></span>
-                  <span class="add-text">添加任务</span>
-                </button>
+              <div class="sec-label">
+                <span>Tasks · 批处理任务</span>
+                <button class="sec-add" id="addTaskCard" type="button" aria-label="添加任务" title="添加任务"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14" /><path d="M12 5v14" /></svg></button>
+                <span class="sec-count" id="taskSecCount"></span>
+                <i></i>
+                <div class="filter-row" id="taskFilter" role="group" aria-label="筛选批处理任务"></div>
+              </div>
+              <div class="app-grid" id="taskGrid"></div>
+              <div class="sec-guide" id="taskEmptyGuide" hidden>
+                <p class="sec-guide-title">还没有批处理任务</p>
+                <p class="sec-guide-body">适合备份、清理、构建等跑完即止的命令。退出码 0 为成功，130 为取消；可在卡片上查看耗时与结果。</p>
+                <p class="sec-guide-hint">点击分区标题旁的 <strong>+</strong> 选择脚本，或手动填写命令。</p>
+              </div>
+              <div class="sec-guide sec-guide-filter" id="taskFilterEmpty" hidden>
+                <p class="sec-guide-title">没有符合筛选的任务</p>
+                <p class="sec-guide-body">当前筛选下没有卡片。切换上方芯片，或选「全部」查看所有任务。</p>
               </div>
             </section>
 
@@ -284,6 +304,25 @@
                 <div class="empty-state" id="mineEmpty" role="row" hidden>
                   <div class="empty-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2" /></svg></div>
                   <p role="cell" aria-colspan="9">暂无监听中的服务</p>
+                </div>
+              </div>
+            </section>
+
+            <!-- 总控台自身（默认折叠；不可结束自身） -->
+            <section class="panel" id="selfPanel" hidden>
+              <button class="sec-label collapsible" id="selfHeader" type="button" aria-expanded="false" aria-controls="selfBody">
+                <span class="chev" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6" /></svg></span>
+                <span>Console · 总控台自身</span>
+                <span class="sec-count" id="selfCount">0</span>
+                <i></i>
+              </button>
+              <div id="selfBody" hidden>
+                <p class="self-note">本机总控台进程（只读展示）。结束进程已禁用，请用顶栏「停止 / 重启」。</p>
+                <div class="tbl tbl-self" role="table" aria-label="总控台自身">
+                  <div class="tr th" role="row">
+                    <span class="c-dot" role="columnheader"><span class="sr-only">状态</span></span><span class="c-title" role="columnheader">服务</span><span class="c-pid" role="columnheader">PID</span><span class="c-port" role="columnheader">端口</span><span class="c-cwd" role="columnheader">目录</span><span class="c-load" role="columnheader">负载</span><span class="c-up" role="columnheader">时长</span><span class="c-status" role="columnheader">状态</span><span class="c-act" role="columnheader">操作</span>
+                  </div>
+                  <div class="tbl-body" id="selfList" role="rowgroup"></div>
                 </div>
               </div>
             </section>
