@@ -3,7 +3,10 @@ set -u
 umask 077
 
 PROJECT_DIR="$(cd "$(dirname "$0")/../../.." && pwd)"
-export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+# Finder/GUI 不读 shell 配置；优先 mise 的 Python 3.12+，再 Homebrew/系统。
+MISE_PY312_BIN="${HOME}/.local/share/mise/installs/python/3.12/bin"
+MISE_SHIMS="${HOME}/.local/share/mise/shims"
+export PATH="${MISE_PY312_BIN}:${MISE_SHIMS}:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 
 show_error() {
   /usr/bin/osascript -e 'on run argv' \

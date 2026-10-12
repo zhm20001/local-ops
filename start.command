@@ -3,6 +3,11 @@ set -u
 umask 077
 cd "$(dirname "$0")"
 
+# 与 总控台.app launcher 一致：双击/Finder 场景优先 mise Python 3.12+。
+MISE_PY312_BIN="${HOME}/.local/share/mise/installs/python/3.12/bin"
+MISE_SHIMS="${HOME}/.local/share/mise/shims"
+export PATH="${MISE_PY312_BIN}:${MISE_SHIMS}:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:${PATH:-}"
+
 if ! command -v python3 >/dev/null 2>&1; then
   echo "错误：未找到 Python 3，请先安装 Python 3.12 或更高版本。" >&2
   exit 127
